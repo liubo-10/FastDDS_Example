@@ -18,15 +18,16 @@
  */
 
 #include "HelloWorldSubscriber.h"
-#include <fastrtps/attributes/ParticipantAttributes.h>
-#include <fastrtps/attributes/SubscriberAttributes.h>
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
-#include <fastdds/dds/subscriber/Subscriber.hpp>
-#include <fastdds/dds/subscriber/DataReader.hpp>
-#include <fastdds/dds/subscriber/SampleInfo.hpp>
 #include <fastdds/dds/subscriber/qos/DataReaderQos.hpp>
+#include <fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.h>
+#include <fastdds/rtps/transport/UDPv4TransportDescriptor.h>
 
 using namespace eprosima::fastdds::dds;
+using namespace eprosima::fastdds::rtps;
+using namespace eprosima::fastrtps::rtps;
+
+
 
 HelloWorldSubscriber::HelloWorldSubscriber()
     : participant_(nullptr)
@@ -58,9 +59,22 @@ bool HelloWorldSubscriber::init(
         const std::string& topic_name,
         const std::string& type_name)
 {
-    DomainParticipantQos participantQos;
-    participantQos.name("Participant_subscriber");
-    participant_ = DomainParticipantFactory::get_instance()->create_participant(0, participantQos);
+    DomainParticipantQos pqos;
+    pqos.wire_protocol().builtin.discovery_config.discoveryProtocol = DiscoveryProtocol_t::SIMPLE;
+    pqos.wire_protocol().builtin.discovery_config.use_SIMPLE_EndpointDiscoveryProtocol = true;
+    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationReaderANDSubscriptionWriter = true;
+    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationWriterANDSubscriptionReader = true;
+    pqos.wire_protocol().builtin.discovery_config.leaseDuration = eprosima::fastrtps::c_TimeInfinite;
+    pqos.name("Participant_sub");
+
+    // Explicit configuration of SharedMem transport
+    pqos.transport().use_builtin_transports = false;
+
+    auto sm_transport = std::make_shared<SharedMemTransportDescriptor>();
+    sm_transport->segment_size(2 * 1024 * 1024);
+    pqos.transport().user_transports.push_back(sm_transport);
+
+    participant_ = DomainParticipantFactory::get_instance()->create_participant(0, pqos);
 
     if (participant_ == nullptr)
     {
@@ -79,7 +93,7 @@ bool HelloWorldSubscriber::init(
     }
 
     // Create the Subscriber
-    subscriber_ = participant_->create_subscriber(SUBSCRIBER_QOS_DEFAULT, nullptr);
+    subscriber_ = participant_->create_subscriber(SUBSCRIBER_QOS_DEFAULT);
 
     if (subscriber_ == nullptr)
     {
@@ -87,7 +101,15 @@ bool HelloWorldSubscriber::init(
     }
 
     // Create the DataReader
-    reader_ = subscriber_->create_datareader(topic_, DATAREADER_QOS_DEFAULT, &listener_);
+    DataReaderQos rqos;
+    rqos.history().kind = KEEP_LAST_HISTORY_QOS;
+    rqos.history().depth = 30;
+    rqos.resource_limits().max_samples = 50;
+    rqos.resource_limits().allocated_samples = 20;
+    rqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+    rqos.durability().kind = TRANSIENT_LOCAL_DURABILITY_QOS;
+
+    reader_ = subscriber_->create_datareader(topic_, rqos, &listener_);
 
     if (reader_ == nullptr)
     {

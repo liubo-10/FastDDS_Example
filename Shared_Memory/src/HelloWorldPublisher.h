@@ -22,9 +22,13 @@
 
 #include "idl_generate/HelloWorldPubSubTypes.h"
 
-#include <fastdds/dds/publisher/DataWriterListener.hpp>
-#include <fastdds/dds/topic/TypeSupport.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
+#include <fastdds/dds/publisher/Publisher.hpp>
+#include <fastdds/dds/publisher/DataWriter.hpp>
+#include <fastdds/dds/publisher/DataWriterListener.hpp>
+#include <fastdds/dds/topic/Topic.hpp>
+
+#include "idl_generate/HelloWorld.h"
 
 class HelloWorldPublisher
 {

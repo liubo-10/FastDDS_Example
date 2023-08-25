@@ -29,14 +29,13 @@ int main(
         int argc,
         char** argv)
 {
-    std::cout << "Starting publisher." << std::endl;
     int samples = 100000;
 
     auto pub_thread = std::thread([&]() {
         HelloWorldPublisher* mypub = new HelloWorldPublisher();
         if(mypub->init("HelloWorldTopic", "HelloWorld"))
         {
-            std::cout << "main 39"<< std::endl;
+            std::cout << "Starting publisher." << std::endl;
             mypub->run(static_cast<uint32_t>(samples));
         }
         delete mypub;
@@ -46,6 +45,7 @@ int main(
         HelloWorldSubscriber* mysub = new HelloWorldSubscriber();
         if(mysub->init("HelloWorldTopic", "HelloWorld"))
         {
+            std::cout << "Starting Subscriber." << std::endl;
             mysub->run();
         }
 
@@ -55,7 +55,6 @@ int main(
 
     pub_thread.join();
     sub_thread.join();
-
 
 
     return 0;

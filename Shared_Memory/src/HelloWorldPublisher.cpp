@@ -18,19 +18,20 @@
  */
 
 #include "HelloWorldPublisher.h"
-#include <fastrtps/attributes/ParticipantAttributes.h>
-#include <fastrtps/attributes/PublisherAttributes.h>
+
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
-#include <fastdds/dds/publisher/Publisher.hpp>
-#include <fastdds/dds/publisher/qos/PublisherQos.hpp>
-#include <fastdds/dds/publisher/DataWriter.hpp>
-#include <fastdds/dds/publisher/qos/DataWriterQos.hpp>
+#include <fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.h>
+#include <fastdds/rtps/transport/UDPv4TransportDescriptor.h>
+
 
 #include <thread>
-
 #include "common.hpp"
 
 using namespace eprosima::fastdds::dds;
+using namespace eprosima::fastdds::rtps;
+using namespace eprosima::fastrtps::rtps;
+
+
 
 HelloWorldPublisher::HelloWorldPublisher()
     : participant_(nullptr)
@@ -67,9 +68,26 @@ bool HelloWorldPublisher::init(
     hello_.index(0);
     hello_.message(kb_message(10));
 
-    DomainParticipantQos participantQos;
-    participantQos.name("Participant_publisher");
-    participant_ = DomainParticipantFactory::get_instance()->create_participant(0, participantQos);
+    //CREATE THE PARTICIPANT
+    DomainParticipantQos pqos;
+    pqos.wire_protocol().builtin.discovery_config.discoveryProtocol = DiscoveryProtocol_t::SIMPLE;
+    pqos.wire_protocol().builtin.discovery_config.use_SIMPLE_EndpointDiscoveryProtocol = true;
+    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationReaderANDSubscriptionWriter = true;
+    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationWriterANDSubscriptionReader = true;
+    pqos.wire_protocol().builtin.discovery_config.leaseDuration = eprosima::fastrtps::c_TimeInfinite;
+    pqos.name("Participant_pub");
+
+    // Explicit configuration of SharedMem transport
+    pqos.transport().use_builtin_transports = false;
+
+    auto shm_transport = std::make_shared<SharedMemTransportDescriptor>();
+    shm_transport->segment_size(2 * 1024 * 1024);
+    pqos.transport().user_transports.push_back(shm_transport);
+
+    participant_ = DomainParticipantFactory::get_instance()->create_participant(0, pqos);
+
+
+
 
     if (participant_ == nullptr)
     {
@@ -88,7 +106,7 @@ bool HelloWorldPublisher::init(
     }
 
     // Create the Publisher
-    publisher_ = participant_->create_publisher(PUBLISHER_QOS_DEFAULT, nullptr);
+    publisher_ = participant_->create_publisher(PUBLISHER_QOS_DEFAULT);
 
     if (publisher_ == nullptr)
     {
@@ -96,7 +114,19 @@ bool HelloWorldPublisher::init(
     }
 
     // Create the DataWriter
-    writer_ = publisher_->create_datawriter(topic_, DATAWRITER_QOS_DEFAULT, &listener_);
+
+    DataWriterQos wqos;
+    wqos.history().kind = KEEP_LAST_HISTORY_QOS;
+    wqos.history().depth = 30;
+    wqos.resource_limits().max_samples = 50;
+    wqos.resource_limits().allocated_samples = 20;
+    wqos.reliable_writer_qos().times.heartbeatPeriod.seconds = 2;
+    wqos.reliable_writer_qos().times.heartbeatPeriod.nanosec = 200 * 1000 * 1000;
+    wqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+    wqos.publish_mode().kind = ASYNCHRONOUS_PUBLISH_MODE;
+
+    writer_ = publisher_->create_datawriter(topic_, wqos, &listener_);
+
 
     if (writer_ == nullptr)
     {
