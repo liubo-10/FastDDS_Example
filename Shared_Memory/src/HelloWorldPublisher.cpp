@@ -87,8 +87,6 @@ bool HelloWorldPublisher::init(
     participant_ = DomainParticipantFactory::get_instance()->create_participant(0, pqos);
 
 
-
-
     if (participant_ == nullptr)
     {
         return false;
@@ -207,8 +205,8 @@ void HelloWorldPublisher::run(
             // std::cout << "Message: " << hello_.message() 
             //             << " with index: " << hello_.index() 
             //             << " SENT" << std::endl;
-            // std::cout << "with index: " << hello_.index() 
-            //           << " SENT" << std::endl;
+            std::cout << "with index: " << hello_.index() 
+                      << " SENT" << std::endl;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }

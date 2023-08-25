@@ -154,8 +154,8 @@ void HelloWorldSubscriber::SubListener::on_data_available(
             // std::cout << "Message " << hello_.message() 
             //           << " " << hello_.index() 
             //           << " RECEIVED" << std::endl;
-            // std::cout <<"index " << hello_.index() 
-            //           << " RECEIVED" << std::endl;
+            std::cout <<"index " << hello_.index() 
+                      << " RECEIVED" << std::endl;
         }
     }
 }
