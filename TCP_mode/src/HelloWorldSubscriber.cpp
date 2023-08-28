@@ -20,8 +20,8 @@
 #include "HelloWorldSubscriber.h"
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/subscriber/qos/DataReaderQos.hpp>
-#include <fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.h>
-#include <fastdds/rtps/transport/UDPv4TransportDescriptor.h>
+#include <fastdds/rtps/transport/TCPv4TransportDescriptor.h>
+#include <fastrtps/utils/IPLocator.h>
 
 using namespace eprosima::fastdds::dds;
 using namespace eprosima::fastdds::rtps;
@@ -61,7 +61,7 @@ bool HelloWorldSubscriber::init(
 {
     const std::string wan_ip = "127.0.0.1";
     int port = 5100;
-    const std::vector<std::string>  whitelist = "127.0.0.1";
+    const std::vector<std::string>  whitelist = {"127.0.0.1"};
 
 
 

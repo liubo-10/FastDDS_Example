@@ -20,7 +20,7 @@
 #include "HelloWorldPublisher.h"
 
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
-#include <fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.h>
+#include <fastdds/rtps/transport/TCPv4TransportDescriptor.h>
 #include <fastdds/rtps/transport/UDPv4TransportDescriptor.h>
 
 
@@ -67,7 +67,7 @@ bool HelloWorldPublisher::init(
 {
     const std::string wan_ip = "127.0.0.1";
     int port = 5100;
-    const std::vector<std::string>  whitelist = "127.0.0.1";
+    const std::vector<std::string>  whitelist ={"127.0.0.1"};
 
 
 
@@ -89,19 +89,6 @@ bool HelloWorldPublisher::init(
     {
         descriptor->interfaceWhiteList.push_back(ip);
         std::cout << "Whitelisted " << ip << std::endl;
-    }
-
-    if (use_tls)
-    {
-        using TLSOptions = TCPTransportDescriptor::TLSConfig::TLSOptions;
-        descriptor->apply_security = true;
-        descriptor->tls_config.password = "test";
-        descriptor->tls_config.cert_chain_file = "servercert.pem";
-        descriptor->tls_config.private_key_file = "serverkey.pem";
-        descriptor->tls_config.tmp_dh_file = "dh2048.pem";
-        descriptor->tls_config.add_option(TLSOptions::DEFAULT_WORKAROUNDS);
-        descriptor->tls_config.add_option(TLSOptions::SINGLE_DH_USE);
-        descriptor->tls_config.add_option(TLSOptions::NO_SSLV2);
     }
 
     descriptor->sendBufferSize = 0;
