@@ -65,38 +65,70 @@ bool HelloWorldPublisher::init(
     const std::string& topic_name,
     const std::string& type_name )
 {
+    const std::string wan_ip = "127.0.0.1";
+    int port = 5100;
+    const std::vector<std::string>  whitelist = "127.0.0.1";
+
+
+
     hello_.index(0);
     hello_.message(kb_message(10));
 
     //CREATE THE PARTICIPANT
     DomainParticipantQos pqos;
-    pqos.wire_protocol().builtin.discovery_config.discoveryProtocol = DiscoveryProtocol_t::SIMPLE;
-    pqos.wire_protocol().builtin.discovery_config.use_SIMPLE_EndpointDiscoveryProtocol = true;
-    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationReaderANDSubscriptionWriter = true;
-    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationWriterANDSubscriptionReader = true;
     pqos.wire_protocol().builtin.discovery_config.leaseDuration = eprosima::fastrtps::c_TimeInfinite;
+    pqos.wire_protocol().builtin.discovery_config.leaseDuration_announcementperiod =
+            eprosima::fastrtps::Duration_t(5, 0);
     pqos.name("Participant_pub");
 
-    // Explicit configuration of SharedMem transport
     pqos.transport().use_builtin_transports = false;
 
-    auto shm_transport = std::make_shared<SharedMemTransportDescriptor>();
-    shm_transport->segment_size(2 * 1024 * 1024);
-    pqos.transport().user_transports.push_back(shm_transport);
+    std::shared_ptr<TCPv4TransportDescriptor> descriptor = std::make_shared<TCPv4TransportDescriptor>();
+
+    for (std::string ip : whitelist)
+    {
+        descriptor->interfaceWhiteList.push_back(ip);
+        std::cout << "Whitelisted " << ip << std::endl;
+    }
+
+    if (use_tls)
+    {
+        using TLSOptions = TCPTransportDescriptor::TLSConfig::TLSOptions;
+        descriptor->apply_security = true;
+        descriptor->tls_config.password = "test";
+        descriptor->tls_config.cert_chain_file = "servercert.pem";
+        descriptor->tls_config.private_key_file = "serverkey.pem";
+        descriptor->tls_config.tmp_dh_file = "dh2048.pem";
+        descriptor->tls_config.add_option(TLSOptions::DEFAULT_WORKAROUNDS);
+        descriptor->tls_config.add_option(TLSOptions::SINGLE_DH_USE);
+        descriptor->tls_config.add_option(TLSOptions::NO_SSLV2);
+    }
+
+    descriptor->sendBufferSize = 0;
+    descriptor->receiveBufferSize = 0;
+
+    if (!wan_ip.empty())
+    {
+        descriptor->set_WAN_address(wan_ip);
+        std::cout << wan_ip << ":" << port << std::endl;
+    }
+    descriptor->add_listener_port(port);
+    pqos.transport().user_transports.push_back(descriptor);
 
     participant_ = DomainParticipantFactory::get_instance()->create_participant(0, pqos);
-
 
     if (participant_ == nullptr)
     {
         return false;
     }
-    
+
+
     // Register the Type
     type_.register_type(participant_);
 
     // Create the publications Topic
     topic_ = participant_->create_topic(topic_name, type_name, TOPIC_QOS_DEFAULT);
+
 
     if (topic_ == nullptr)
     {
@@ -121,7 +153,7 @@ bool HelloWorldPublisher::init(
     wqos.reliable_writer_qos().times.heartbeatPeriod.seconds = 2;
     wqos.reliable_writer_qos().times.heartbeatPeriod.nanosec = 200 * 1000 * 1000;
     wqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
-    wqos.publish_mode().kind = ASYNCHRONOUS_PUBLISH_MODE;
+
 
     writer_ = publisher_->create_datawriter(topic_, wqos, &listener_);
 

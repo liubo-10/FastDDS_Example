@@ -59,20 +59,47 @@ bool HelloWorldSubscriber::init(
         const std::string& topic_name,
         const std::string& type_name)
 {
+    const std::string wan_ip = "127.0.0.1";
+    int port = 5100;
+    const std::vector<std::string>  whitelist = "127.0.0.1";
+
+
+
+    //CREATE THE PARTICIPANT
     DomainParticipantQos pqos;
-    pqos.wire_protocol().builtin.discovery_config.discoveryProtocol = DiscoveryProtocol_t::SIMPLE;
-    pqos.wire_protocol().builtin.discovery_config.use_SIMPLE_EndpointDiscoveryProtocol = true;
-    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationReaderANDSubscriptionWriter = true;
-    pqos.wire_protocol().builtin.discovery_config.m_simpleEDP.use_PublicationWriterANDSubscriptionReader = true;
+    int32_t kind = LOCATOR_KIND_TCPv4;
+
+    Locator initial_peer_locator;
+    initial_peer_locator.kind = kind;
+
+    std::shared_ptr<TCPv4TransportDescriptor> descriptor = std::make_shared<TCPv4TransportDescriptor>();
+
+    for (std::string ip : whitelist)
+    {
+        descriptor->interfaceWhiteList.push_back(ip);
+        std::cout << "Whitelisted " << ip << std::endl;
+    }
+
+    if (!wan_ip.empty())
+    {
+        IPLocator::setIPv4(initial_peer_locator, wan_ip);
+        std::cout << wan_ip << ":" << port << std::endl;
+    }
+    else
+    {
+        IPLocator::setIPv4(initial_peer_locator, "127.0.0.1");
+    }
+    initial_peer_locator.port = port;
+    pqos.wire_protocol().builtin.initialPeersList.push_back(initial_peer_locator); // Publisher's meta channel
+
     pqos.wire_protocol().builtin.discovery_config.leaseDuration = eprosima::fastrtps::c_TimeInfinite;
+    pqos.wire_protocol().builtin.discovery_config.leaseDuration_announcementperiod = Duration_t(5, 0);
     pqos.name("Participant_sub");
 
-    // Explicit configuration of SharedMem transport
     pqos.transport().use_builtin_transports = false;
 
-    auto sm_transport = std::make_shared<SharedMemTransportDescriptor>();
-    sm_transport->segment_size(2 * 1024 * 1024);
-    pqos.transport().user_transports.push_back(sm_transport);
+
+    pqos.transport().user_transports.push_back(descriptor);
 
     participant_ = DomainParticipantFactory::get_instance()->create_participant(0, pqos);
 
@@ -80,6 +107,8 @@ bool HelloWorldSubscriber::init(
     {
         return false;
     }
+
+
 
     // Register the Type
     type_.register_type(participant_);
